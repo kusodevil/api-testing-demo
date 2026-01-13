@@ -7,7 +7,10 @@
     "test:jsonplaceholder": "playwright test tests/jsonplaceholder/",
     "test:reqres": "playwright test tests/reqres/",
     "test:petstore": "playwright test tests/petstore/",
-    "report": "playwright show-report"
+    "test:advanced": "playwright test tests/advanced/",
+    "test:notify": "playwright test --reporter=json,list | tee test-results.json && node utils/slack-notify.js",
+    "report": "playwright show-report",
+    "slack:test": "node utils/slack-notify.js"
   },
   "keywords": [
     "api",
