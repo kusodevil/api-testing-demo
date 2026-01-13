@@ -13,6 +13,7 @@
 ## 技術棧
 
 - **測試框架**: Playwright Test v1.57.0
+- **效能測試**: K6
 - **報告工具**: Playwright HTML Report + Allure Reporter
 - **通知整合**: Slack Webhook
 - **執行環境**: Node.js
@@ -48,6 +49,10 @@ api-testing-demo/
 │       ├── http-headers.spec.js  # HTTP Headers
 │       ├── data-integrity.spec.js      # 資料完整性
 │       └── e2e-crud.spec.js      # E2E CRUD 流程
+├── k6/                           # K6 效能測試
+│   ├── load-test.js              # 負載測試
+│   ├── stress-test.js            # 壓力測試
+│   └── spike-test.js             # 突波測試
 ├── utils/
 │   └── slack-notify.js           # Slack 通知工具
 ├── playwright.config.js          # Playwright 配置
@@ -111,6 +116,68 @@ Swagger 官方範例 API，完整的商業應用模擬。
 | HTTP Headers | `http-headers.spec.js` | Content-Type、CORS、Cache |
 | 資料完整性 | `data-integrity.spec.js` | 一致性、關聯資料 |
 | E2E 流程 | `e2e-crud.spec.js` | 完整 CRUD 流程測試 |
+
+## K6 效能測試
+
+專案包含三種 K6 效能測試腳本，用於測試 API 在不同負載情況下的表現。
+
+### 測試類型比較
+
+| 類型 | 檔案 | 目的 | 使用場景 |
+|------|------|------|----------|
+| **Load Test** | `load-test.js` | 測試正常負載下的系統表現 | 日常監控、CI 整合 |
+| **Stress Test** | `stress-test.js` | 找出系統極限和瓶頸 | 上線前評估、容量規劃 |
+| **Spike Test** | `spike-test.js` | 測試突發流量的承受能力 | 促銷活動前、災難演練 |
+
+### 安裝 K6
+
+```bash
+# macOS
+brew install k6
+
+# Windows
+choco install k6
+
+# Linux
+sudo apt-get install k6
+```
+
+### 執行效能測試
+
+```bash
+# 負載測試 (約 5 分鐘)
+k6 run k6/load-test.js
+
+# 壓力測試 (約 14 分鐘)
+k6 run k6/stress-test.js
+
+# 突波測試 (約 4 分鐘)
+k6 run k6/spike-test.js
+
+# 自訂參數執行
+k6 run --vus 100 --duration 2m k6/load-test.js
+
+# 輸出 JSON 報告
+k6 run --out json=results.json k6/load-test.js
+```
+
+### 效能門檻說明
+
+| 測試 | p95 回應時間 | 錯誤率上限 |
+|------|-------------|-----------|
+| Load Test | < 500ms | < 5% |
+| Stress Test | < 1000ms | < 10% |
+| Spike Test | < 2000ms | < 20% |
+
+### Playwright vs K6 效能測試
+
+| 面向 | Playwright (tests/advanced/performance.spec.js) | K6 (k6/*.js) |
+|------|------------------------------------------------|--------------|
+| 目的 | 功能驗證 + 基本效能檢查 | 真實負載/壓力測試 |
+| 虛擬用戶 | 1-20 個 | 100-500+ 個 |
+| 執行時間 | 數秒 | 數分鐘到數小時 |
+| 執行環境 | CI/CD (每次 commit) | 專用環境 (定期/上線前) |
+| 測量指標 | 單一請求回應時間 | p50/p95/p99、RPS、錯誤率 |
 
 ## 安裝與執行
 
