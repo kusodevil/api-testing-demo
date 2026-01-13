@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# 設定 GitHub Pages 部署權限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -24,9 +30,31 @@ jobs:
         run: npm ci
 
       - name: Run API tests
-        run: npm test
+        id: test
+        run: |
+          npm test -- --reporter=json --reporter=html 2>&1 | tee test-output.txt || true
+          # 解析測試結果
+          if grep -q "passed" test-output.txt; then
+            PASSED=$(grep -oP '\d+(?= passed)' test-output.txt | tail -1 || echo "0")
+            FAILED=$(grep -oP '\d+(?= failed)' test-output.txt | tail -1 || echo "0")
+            SKIPPED=$(grep -oP '\d+(?= skipped)' test-output.txt | tail -1 || echo "0")
+            DURATION=$(grep -oP '\d+\.?\d*(?=s\))' test-output.txt | tail -1 || echo "0")
+          else
+            PASSED=0
+            FAILED=1
+            SKIPPED=0
+            DURATION=0
+          fi
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+          echo "duration=$DURATION" >> $GITHUB_OUTPUT
+          # 如果有失敗測試，設定 exit code
+          if [ "$FAILED" != "0" ]; then
+            exit 1
+          fi
 
-      - name: Upload test report
+      - name: Upload test report artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -34,11 +62,56 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
+  # 部署報告到 GitHub Pages
+  deploy-report:
+    needs: test
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Download test report
+        uses: actions/download-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: playwright-report/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # 發送 Slack 通知
+  notify:
+    needs: [test, deploy-report]
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Send Slack notification
-        if: always()
         run: node utils/slack-notify.js
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          TEST_PASSED: ${{ job.status == 'success' && '273' || '0' }}
-          TEST_FAILED: ${{ job.status == 'success' && '0' || '1' }}
-          TEST_DURATION: '30'
+          TEST_PASSED: ${{ needs.test.outputs.passed || '0' }}
+          TEST_FAILED: ${{ needs.test.outputs.failed || '0' }}
+          TEST_SKIPPED: ${{ needs.test.outputs.skipped || '0' }}
+          TEST_DURATION: ${{ needs.test.outputs.duration || '0' }}
+          REPORT_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/

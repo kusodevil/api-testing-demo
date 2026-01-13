@@ -58,7 +58,8 @@ function createSlackMessage(results, options = {}) {
 
   const projectName = options.projectName || 'API Testing Demo';
   const branch = options.branch || process.env.GITHUB_REF_NAME || 'main';
-  const runUrl = options.runUrl || process.env.GITHUB_SERVER_URL
+  const reportUrl = options.reportUrl || process.env.REPORT_URL || null;
+  const runUrl = options.runUrl || (process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID)
     ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
     : null;
 
@@ -111,22 +112,38 @@ function createSlackMessage(results, options = {}) {
     },
   ];
 
-  // 如果有執行 URL，加入按鈕
+  // 加入按鈕
+  const buttons = [];
+
+  if (reportUrl) {
+    buttons.push({
+      type: 'button',
+      text: {
+        type: 'plain_text',
+        text: '查看測試報告',
+        emoji: true,
+      },
+      url: reportUrl,
+      style: 'primary',
+    });
+  }
+
   if (runUrl) {
+    buttons.push({
+      type: 'button',
+      text: {
+        type: 'plain_text',
+        text: '查看 CI 執行',
+        emoji: true,
+      },
+      url: runUrl,
+    });
+  }
+
+  if (buttons.length > 0) {
     blocks.push({
       type: 'actions',
-      elements: [
-        {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            text: '查看詳細報告',
-            emoji: true,
-          },
-          url: runUrl,
-          style: 'primary',
-        },
-      ],
+      elements: buttons,
     });
   }
 
