@@ -1,0 +1,24 @@
+{
+  "name": "api-testing-demo",
+  "version": "1.0.0",
+  "description": "API Testing Demo with Playwright - Portfolio Project",
+  "scripts": {
+    "test": "playwright test",
+    "test:jsonplaceholder": "playwright test tests/jsonplaceholder/",
+    "test:reqres": "playwright test tests/reqres/",
+    "test:petstore": "playwright test tests/petstore/",
+    "report": "playwright show-report"
+  },
+  "keywords": [
+    "api",
+    "testing",
+    "playwright",
+    "automation"
+  ],
+  "author": "Jay Huang",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "allure-playwright": "^3.4.4"
+  }
+}
